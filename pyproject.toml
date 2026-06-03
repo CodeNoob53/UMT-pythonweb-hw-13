@@ -30,6 +30,7 @@ dev = [
     "fakeredis>=2.23.0",
     "sphinx>=7.0.0",
     "sphinx-rtd-theme>=2.0.0",
+    "httpx2>=2.3.0",
 ]
 
 [tool.pytest.ini_options]

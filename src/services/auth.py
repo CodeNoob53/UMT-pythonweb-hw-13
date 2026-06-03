@@ -108,12 +108,12 @@ async def get_email_from_token(token: str) -> str:
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid token"
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid token"
             )
         return email
     except JWTError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid token"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid token"
         )
 
 
