@@ -5,7 +5,7 @@ from fastapi_mail.errors import ConnectionErrors
 from pydantic import EmailStr
 
 from src.conf.config import settings
-from src.services.auth import create_email_token
+from src.services.auth import create_email_token, create_password_reset_token
 
 conf = ConnectionConfig(
     MAIL_USERNAME=settings.MAIL_USERNAME,
@@ -22,7 +22,14 @@ conf = ConnectionConfig(
 )
 
 
-async def send_email(email: EmailStr, username: str, host: str):
+async def send_email(email: EmailStr, username: str, host: str) -> None:
+    """Send an email verification message to a newly registered user.
+
+    Args:
+        email: Recipient's email address.
+        username: Recipient's display name.
+        host: Base URL of the application, used to build the confirmation link.
+    """
     try:
         token_verification = create_email_token({"sub": email})
         message = MessageSchema(
@@ -37,5 +44,31 @@ async def send_email(email: EmailStr, username: str, host: str):
         )
         fm = FastMail(conf)
         await fm.send_message(message, template_name="verify_email.html")
+    except ConnectionErrors as err:
+        print(err)
+
+
+async def send_password_reset_email(email: EmailStr, username: str, host: str) -> None:
+    """Send a password reset link to the user.
+
+    Args:
+        email: Recipient's email address.
+        username: Recipient's display name.
+        host: Base URL of the application, used to build the reset link.
+    """
+    try:
+        token = create_password_reset_token(email)
+        message = MessageSchema(
+            subject="Password Reset Request",
+            recipients=[email],
+            template_body={
+                "host": host,
+                "username": username,
+                "token": token,
+            },
+            subtype=MessageType.html,
+        )
+        fm = FastMail(conf)
+        await fm.send_message(message, template_name="password_reset.html")
     except ConnectionErrors as err:
         print(err)

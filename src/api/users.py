@@ -5,9 +5,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from src.database.db import get_db
-from src.database.models import User
+from src.database.models import User, UserRole
 from src.schemas import UserResponse
-from src.services.auth import get_current_user
+from src.services.auth import get_current_user, require_role, invalidate_user_cache
 from src.services.upload_file import UploadFileService
 from src.services.users import UserService
 from src.conf.config import settings
@@ -18,25 +18,55 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.get("/me", response_model=UserResponse, description="No more than 10 requests per minute")
 @limiter.limit("10/minute")
-async def me(request: Request, user: User = Depends(get_current_user)):
+async def me(request: Request, user: User = Depends(get_current_user)) -> UserResponse:
+    """Return the profile of the currently authenticated user.
+
+    Args:
+        request: Incoming HTTP request (required by SlowAPI rate limiter).
+        user: Current user resolved from JWT + Redis cache.
+
+    Returns:
+        User profile data.
+    """
     return user
 
 
 @router.patch("/avatar", response_model=UserResponse)
 async def update_avatar(
     file: UploadFile = File(),
-    user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserResponse:
+    """Upload a new avatar image for the current user. Admin only.
+
+    Regular users receive 403 Forbidden.
+
+    Args:
+        file: The image file to upload.
+        current_user: Admin user resolved from JWT dependency.
+        db: Async DB session.
+
+    Raises:
+        HTTPException 400: If no file is provided or it is not an image.
+        HTTPException 403: If the user is not an admin, or Cloudinary rejects the upload.
+        HTTPException 502: If Cloudinary upload fails for another reason.
+
+    Returns:
+        Updated user profile with new avatar URL.
+    """
     if not file.filename:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar file is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar file is required"
+        )
     if file.content_type and not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar must be an image")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar must be an image"
+        )
 
     try:
         avatar_url = UploadFileService(
             settings.CLD_NAME, settings.CLD_API_KEY, settings.CLD_API_SECRET
-        ).upload_file(file, user.username)
+        ).upload_file(file, current_user.username)
     except NotAllowed as err:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -49,4 +79,6 @@ async def update_avatar(
         ) from err
 
     user_service = UserService(db)
-    return await user_service.update_avatar_url(user.email, avatar_url)
+    updated = await user_service.update_avatar_url(current_user.email, avatar_url)
+    await invalidate_user_cache(current_user.username)
+    return updated
