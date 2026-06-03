@@ -36,6 +36,11 @@
   <h1>Source code for src.api.contacts</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Contacts API router — CRUD operations for user contacts.&quot;&quot;&quot;</span>
 
+<span class="sd">&quot;&quot;&quot;Contacts API routes.</span>
+
+<span class="sd">Endpoints for CRUD operations on user contacts and search utilities.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">Query</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.ext.asyncio</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncSession</span>
 

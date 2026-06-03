@@ -1,3 +1,8 @@
+"""User-related API routes.
+
+Provides endpoints for retrieving the current user and updating avatars.
+"""
+
 from cloudinary.exceptions import Error as CloudinaryError, NotAllowed
 from fastapi import APIRouter, Depends, Request, UploadFile, File, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession

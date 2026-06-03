@@ -34,7 +34,14 @@
           <div class="body" role="main">
             
   <h1>Source code for src.services.redis_cache</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span></span><span class="sd">&quot;&quot;&quot;Simple async Redis cache helpers used across the application.</span>
+
+<span class="sd">Provides a lazily-created `aioredis.Redis` client and small helpers to</span>
+<span class="sd">set/get/delete JSON-serializable values. Keys for user cache are created</span>
+<span class="sd">via `user_cache_key`.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">redis.asyncio</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">aioredis</span>

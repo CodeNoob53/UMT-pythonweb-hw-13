@@ -34,7 +34,14 @@
           <div class="body" role="main">
             
   <h1>Source code for src.services.auth</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">UTC</span>
+<span></span><span class="sd">&quot;&quot;&quot;Authentication helpers: JWT tokens, password hashing, and current-user dependency.</span>
+
+<span class="sd">This module provides utilities to create access/refresh/email/password-reset</span>
+<span class="sd">tokens, verify them, and a `get_current_user` FastAPI dependency that</span>
+<span class="sd">integrates Redis caching to avoid repeated DB lookups.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">UTC</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">bcrypt</span>
@@ -47,6 +54,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">src.database.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_db</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">src.database.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">User</span><span class="p">,</span> <span class="n">UserRole</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">src.services.redis_cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">cache_get</span><span class="p">,</span> <span class="n">cache_set</span><span class="p">,</span> <span class="n">cache_delete</span><span class="p">,</span> <span class="n">user_cache_key</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">UserResponse</span>
 
 <span class="n">oauth2_scheme</span> <span class="o">=</span> <span class="n">OAuth2PasswordBearer</span><span class="p">(</span><span class="n">tokenUrl</span><span class="o">=</span><span class="s2">&quot;/api/auth/login&quot;</span><span class="p">)</span>
 
@@ -234,7 +242,14 @@
     <span class="c1"># --- Redis cache lookup ---</span>
     <span class="n">cached</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">user_cache_key</span><span class="p">(</span><span class="n">username</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">cached</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="c1"># Reconstruct a lightweight User ORM object from the cache dict</span>
+        <span class="c1"># Reconstruct a lightweight User ORM object from the cache dict.</span>
+        <span class="c1"># Ensure `created_at` is converted back to a datetime if stored as ISO.</span>
+        <span class="k">if</span> <span class="n">cached</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;created_at&quot;</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cached</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">cached</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="c1"># If parsing fails, leave as-is; the ORM may accept None or string in tests.</span>
+                <span class="k">pass</span>
         <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cached</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
         <span class="k">return</span> <span class="n">user</span>
 
@@ -254,17 +269,24 @@
 
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_cache_user</span><span class="p">(</span><span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Store safe user fields in Redis with the configured TTL.&quot;&quot;&quot;</span>
-    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
-        <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span>
-        <span class="s2">&quot;avatar&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">avatar</span><span class="p">,</span>
-        <span class="s2">&quot;confirmed&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">,</span>
-        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">role</span><span class="p">,</span>
-        <span class="s2">&quot;hashed_password&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>   <span class="c1"># intentionally blank — required by ORM constructor</span>
-        <span class="s2">&quot;refresh_token&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="s2">&quot;created_at&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">created_at</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">}</span>
+    <span class="c1"># Use Pydantic schema to produce a stable payload containing only safe fields.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">pyd</span> <span class="o">=</span> <span class="n">UserResponse</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">pyd</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="c1"># Fallback to manual payload if Pydantic construction fails</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
+            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span>
+            <span class="s2">&quot;avatar&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">avatar</span><span class="p">,</span>
+            <span class="s2">&quot;confirmed&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">,</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">role</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="c1"># Ensure sensitive fields are absent or blank as expected by callers/tests</span>
+    <span class="n">payload</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;hashed_password&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">payload</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;refresh_token&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="s2">&quot;created_at&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="k">await</span> <span class="n">cache_set</span><span class="p">(</span><span class="n">user_cache_key</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">username</span><span class="p">),</span> <span class="n">payload</span><span class="p">,</span> <span class="n">settings</span><span class="o">.</span><span class="n">REDIS_CACHE_TTL</span><span class="p">)</span>
 
 

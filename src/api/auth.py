@@ -1,3 +1,9 @@
+"""Authentication API routes.
+
+This module exposes endpoints for registration, login, token refresh,
+email confirmation, and password reset.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession

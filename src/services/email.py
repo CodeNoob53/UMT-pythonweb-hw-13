@@ -1,3 +1,9 @@
+"""Email utilities for sending verification and password reset messages.
+
+This module wraps `fastapi-mail` to send templated emails for account
+verification and password reset flows.
+"""
+
 from pathlib import Path
 
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType

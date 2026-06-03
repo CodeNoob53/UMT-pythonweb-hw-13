@@ -1,3 +1,10 @@
+"""Authentication helpers: JWT tokens, password hashing, and current-user dependency.
+
+This module provides utilities to create access/refresh/email/password-reset
+tokens, verify them, and a `get_current_user` FastAPI dependency that
+integrates Redis caching to avoid repeated DB lookups.
+"""
+
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 

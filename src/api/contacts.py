@@ -1,5 +1,10 @@
 """Contacts API router — CRUD operations for user contacts."""
 
+"""Contacts API routes.
+
+Endpoints for CRUD operations on user contacts and search utilities.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 

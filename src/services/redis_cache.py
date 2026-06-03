@@ -1,3 +1,10 @@
+"""Simple async Redis cache helpers used across the application.
+
+Provides a lazily-created `aioredis.Redis` client and small helpers to
+set/get/delete JSON-serializable values. Keys for user cache are created
+via `user_cache_key`.
+"""
+
 import json
 from typing import Any
 

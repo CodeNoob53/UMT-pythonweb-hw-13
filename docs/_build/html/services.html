@@ -45,6 +45,10 @@
 <h1>Services<a class="headerlink" href="#services" title="Link to this heading">¶</a></h1>
 <section id="module-src.services.auth">
 <span id="auth"></span><h2>auth<a class="headerlink" href="#module-src.services.auth" title="Link to this heading">¶</a></h2>
+<p>Authentication helpers: JWT tokens, password hashing, and current-user dependency.</p>
+<p>This module provides utilities to create access/refresh/email/password-reset
+tokens, verify them, and a <cite>get_current_user</cite> FastAPI dependency that
+integrates Redis caching to avoid repeated DB lookups.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="src.services.auth.Hash">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">Hash</span></span><a class="reference internal" href="_modules/src/services/auth.html#Hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.Hash" title="Link to this definition">¶</a></dt>
@@ -236,6 +240,9 @@
 </section>
 <section id="module-src.services.email">
 <span id="email"></span><h2>email<a class="headerlink" href="#module-src.services.email" title="Link to this heading">¶</a></h2>
+<p>Email utilities for sending verification and password reset messages.</p>
+<p>This module wraps <cite>fastapi-mail</cite> to send templated emails for account
+verification and password reset flows.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="src.services.email.send_email">
 <span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.email.</span></span><span class="sig-name descname"><span class="pre">send_email</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">EmailStr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/src/services/email.html#send_email"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.email.send_email" title="Link to this definition">¶</a></dt>
@@ -269,6 +276,10 @@
 </section>
 <section id="module-src.services.redis_cache">
 <span id="redis-cache"></span><h2>redis_cache<a class="headerlink" href="#module-src.services.redis_cache" title="Link to this heading">¶</a></h2>
+<p>Simple async Redis cache helpers used across the application.</p>
+<p>Provides a lazily-created <cite>aioredis.Redis</cite> client and small helpers to
+set/get/delete JSON-serializable values. Keys for user cache are created
+via <cite>user_cache_key</cite>.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="src.services.redis_cache.cache_delete">
 <span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.redis_cache.</span></span><span class="sig-name descname"><span class="pre">cache_delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/src/services/redis_cache.html#cache_delete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.redis_cache.cache_delete" title="Link to this definition">¶</a></dt>
