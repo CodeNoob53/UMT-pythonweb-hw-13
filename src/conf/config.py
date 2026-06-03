@@ -12,12 +12,12 @@ class Settings(BaseSettings):
     JWT_ACCESS_EXPIRATION_SECONDS: int = 900
     JWT_REFRESH_EXPIRATION_SECONDS: int = 604800
 
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str
     REDIS_CACHE_TTL: int = 900
 
     # Comma-separated list of allowed CORS origins.
     # Example: "http://localhost:3000,https://myapp.render.com"
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
+    CORS_ORIGINS: str
 
     MAIL_USERNAME: EmailStr
     MAIL_PASSWORD: str

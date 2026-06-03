@@ -3,9 +3,12 @@ import os
 
 sys.path.insert(0, os.path.abspath(".."))
 
-# Minimal env vars so settings can be imported during docs build
+# Minimal env vars so settings can be imported during docs build.
+# REDIS_URL and CORS_ORIGINS have no defaults in Settings, so they must be set here.
 os.environ.setdefault("DB_URL", "postgresql+asyncpg://postgres:postgres@localhost/contacts_db")
 os.environ.setdefault("JWT_SECRET", "docs-build-secret-key-placeholder")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
 os.environ.setdefault("MAIL_USERNAME", "docs@example.com")
 os.environ.setdefault("MAIL_PASSWORD", "placeholder")
 os.environ.setdefault("MAIL_FROM", "docs@example.com")

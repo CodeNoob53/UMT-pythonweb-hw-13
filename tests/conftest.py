@@ -1,5 +1,19 @@
 """Shared pytest fixtures for unit and integration tests."""
 
+# Set required env vars BEFORE any src imports so pydantic-settings can validate.
+# These are test-only values; the real .env is never read during pytest.
+import os as _os
+_os.environ.setdefault("DB_URL", "sqlite+aiosqlite:///:memory:")
+_os.environ.setdefault("JWT_SECRET", "test-secret-key-for-pytest-only")
+_os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+_os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
+_os.environ.setdefault("MAIL_USERNAME", "test@example.com")
+_os.environ.setdefault("MAIL_PASSWORD", "test")
+_os.environ.setdefault("MAIL_FROM", "test@example.com")
+_os.environ.setdefault("CLD_NAME", "test")
+_os.environ.setdefault("CLD_API_KEY", "0")
+_os.environ.setdefault("CLD_API_SECRET", "test")
+
 import asyncio
 import sys
 from unittest.mock import AsyncMock, patch
