@@ -1,83 +1,71 @@
-# UMT Python Web HW 11 - Contacts API
+# UMT Python Web HW 13 - Contacts API
 
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1)
+![Redis](https://img.shields.io/badge/Redis-7-red)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%2B-red)
-![Alembic](https://img.shields.io/badge/Alembic-migrations-orange)
-![JWT](https://img.shields.io/badge/Auth-JWT-black)
-![Cloudinary](https://img.shields.io/badge/Cloudinary-avatar_upload-3448C5)
-![Postman](https://img.shields.io/badge/Postman-collection-FF6C37)
+![JWT](https://img.shields.io/badge/Auth-JWT_access%2Frefresh-black)
+![Coverage](https://img.shields.io/badge/coverage-78%25-green)
 
-REST API застосунок для керування контактами з автентифікацією, JWT-авторизацією, email verification, rate limiting, CORS та оновленням аватара через Cloudinary.
-
-Проєкт виконано для домашнього завдання **Тема 11. Аутентифікація та авторизація REST API**.
+REST API для керування контактами з JWT access/refresh токенами, Redis-кешуванням,
+скиданням пароля, ролями користувачів та автентифікацією.
 
 ## Можливості
 
-- Реєстрація користувача з перевіркою унікальності `email` та `username`.
-- Хешування паролів через `bcrypt`.
-- Login через `OAuth2PasswordRequestForm`.
-- JWT access token для захищених маршрутів.
-- Доступ користувача тільки до власних контактів.
-- Email verification через token-посилання.
-- Rate limit для маршруту `/api/users/me`.
-- CORS для REST API.
-- Оновлення аватара користувача через Cloudinary.
-- CRUD для контактів.
-- Пошук контактів за `first_name`, `last_name` або `email`.
-- Перегляд контактів із днями народження у найближчі 7 днів.
-- Postman collection для ручного тестування API.
+- Реєстрація / login / logout.
+- JWT **access token** (короткий, 15 хв) + **refresh token** (довгий, 7 днів).
+- Endpoint `/api/auth/refresh` для оновлення пари токенів.
+- Redis-кеш для `get_current_user`: cache hit → Redis, cache miss → DB + populate.
+- Інвалідація кешу при зміні пароля, ролі, email confirmation та logout.
+- Скидання пароля через email-посилання (JWT-токен, TTL 1 год).
+- Ролі: `user` та `admin`. Перший зареєстрований користувач — адмін.
+- Endpoint `/api/users/avatar` — тільки для адміністраторів (403 для звичайних).
+- Email-верифікація при реєстрації.
+- CRUD контактів з пошуком і фільтром по днях народження.
+- Rate limiting на `/api/users/me`.
+- Cloudinary для завантаження аватара.
+- Sphinx-документація.
+- Покриття тестами > 75% (pytest + pytest-cov).
 
-## Технології
-
-- Python 3.12+
-- FastAPI
-- PostgreSQL
-- SQLAlchemy 2
-- Alembic
-- asyncpg
-- python-jose
-- bcrypt
-- FastAPI Mail
-- SlowAPI
-- Cloudinary
-- Pydantic Settings
-- Uvicorn
-
-## Структура
+## Структура проєкту
 
 ```text
 .
-├── alembic/                         # міграції бази даних
+├── alembic/               # міграції БД
+├── docs/                  # Sphinx документація
+│   └── _build/html/       # згенерована HTML-документація
 ├── src/
-│   ├── api/                         # API маршрути
-│   ├── conf/                        # конфігурація з .env
-│   ├── database/                    # DB engine та SQLAlchemy models
-│   ├── repository/                  # робота з БД
-│   ├── services/                    # auth, email, users, Cloudinary upload
-│   └── schemas.py                   # Pydantic schemas
-├── Contacts_API.postman_collection.json
-├── Dockerfile
-├── docker-compose.yml
-├── main.py
+│   ├── api/               # auth, users, contacts роутери
+│   ├── conf/              # Settings через pydantic-settings
+│   ├── database/          # SQLAlchemy engine, ORM моделі
+│   ├── repository/        # UserRepository, ContactRepository
+│   ├── services/          # auth, email, redis_cache, upload_file, users
+│   └── schemas.py         # Pydantic schemas
+├── tests/                 # unit + integration тести
+├── main.py                # FastAPI app entry point
 ├── pyproject.toml
-└── .env.example
+├── .env.example
+└── docker-compose.yml     # локальна розробка (PostgreSQL + Redis)
 ```
 
-## Налаштування середовища
+## Налаштування `.env`
 
-Створіть `.env` у корені проєкту на основі `.env.example`.
+Скопіюйте `.env.example` → `.env` і заповніть:
 
 ```env
 DB_URL=postgresql+asyncpg://postgres:your_db_pass@localhost:5432/contacts_db
 
-JWT_SECRET=your_super_secret_key_here
+JWT_SECRET=your_super_secret_key_here_min_32_chars
 JWT_ALGORITHM=HS256
-JWT_EXPIRATION_SECONDS=3600
+JWT_ACCESS_EXPIRATION_SECONDS=900
+JWT_REFRESH_EXPIRATION_SECONDS=604800
+
+REDIS_URL=redis://localhost:6379/0
+REDIS_CACHE_TTL=900
 
 MAIL_USERNAME=example@gmail.com
-MAIL_PASSWORD=
+MAIL_PASSWORD=your_app_password
 MAIL_FROM=example@gmail.com
 MAIL_PORT=465
 MAIL_SERVER=smtp.gmail.com
@@ -89,66 +77,65 @@ VALIDATE_CERTS=True
 
 CLD_NAME=your_cloud_name
 CLD_API_KEY=your_api_key
-CLD_API_SECRET=
+CLD_API_SECRET=your_api_secret
 ```
 
-> `.env` не має потрапляти в Git. У репозиторії зберігається тільки `.env.example`.
+> `.env` не комітиться в Git. В репозиторії — тільки `.env.example`.
 
-## Запуск локально
-
-Встановіть залежності у віртуальне середовище.
+## Локальний запуск (без Docker)
 
 ```powershell
-uv sync
+# Встановити залежності (включно з dev)
+uv sync --all-extras
+
+# Застосувати міграції
+uv run alembic upgrade head
+
+# Запустити сервер
+uv run uvicorn main:app --reload
 ```
 
-Якщо `uv` не використовується, встановіть залежності будь-яким зручним способом з `pyproject.toml`.
+- Swagger UI: http://127.0.0.1:8000/docs
+- ReDoc: http://127.0.0.1:8000/redoc
 
-Переконайтесь, що PostgreSQL запущений локально і база з `DB_URL` існує.
+## Docker Compose (локальна розробка)
 
-Застосуйте міграції:
-
-```powershell
-.\.venv\Scripts\python.exe -m alembic upgrade head
-```
-
-Запустіть API:
+Піднімає PostgreSQL 16 + Redis 7 + FastAPI застосунок.
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn main:app --reload
-```
-
-Документація FastAPI буде доступна за адресами:
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-
-## Docker Compose
-
-Docker Compose піднімає всі потрібні сервіси для застосунку:
-
-- `db` - PostgreSQL 16;
-- `api` - FastAPI застосунок.
-
-Перед запуском створіть `.env` на основі `.env.example`. Для Docker Compose значення `DB_URL` автоматично перевизначається на адресу контейнера бази даних `db`, а інші змінні з `.env` використовуються для JWT, пошти та Cloudinary.
-
-Запуск:
-
-```powershell
+# Запуск
 docker compose up --build
+
+# Зупинка
+docker compose down
 ```
 
-Контейнер `api` перед стартом сервера виконує:
+Перед запуском — заповніть `.env`. `DB_URL` і `REDIS_URL` автоматично перевизначаються
+через `environment:` у `docker-compose.yml`.
 
-```text
-alembic upgrade head
+## Тести
+
+```powershell
+# Запустити тести
+uv run pytest tests/
+
+# З coverage-звітом
+uv run pytest tests/ --cov=src --cov-report=term-missing
+
+# З мінімальним порогом (75%)
+uv run pytest tests/ --cov=src --cov-fail-under=75
 ```
 
-Після запуску API буде доступне за адресою:
+Тести використовують **SQLite in-memory** (не потребує PostgreSQL) і **fakeredis** (не потребує Redis).
 
-```text
-http://127.0.0.1:8000/docs
+## Sphinx-документація
+
+```powershell
+# Побудувати HTML-документацію
+uv run sphinx-build -b html docs docs/_build/html
 ```
+
+Готова документація буде в `docs/_build/html/index.html`.
 
 ## Основні API маршрути
 
@@ -156,138 +143,58 @@ http://127.0.0.1:8000/docs
 
 | Method | URL | Опис |
 |---|---|---|
-| `POST` | `/api/auth/register` | Реєстрація користувача |
-| `POST` | `/api/auth/login` | Login, отримання JWT access token |
-| `GET` | `/api/auth/confirmed_email/{token}` | Підтвердження email |
+| `POST` | `/api/auth/register` | Реєстрація |
+| `POST` | `/api/auth/login` | Login → access + refresh token |
+| `POST` | `/api/auth/refresh` | Оновлення пари токенів |
+| `POST` | `/api/auth/logout` | Logout (відкликати refresh token) |
+| `GET`  | `/api/auth/confirmed_email/{token}` | Підтвердження email |
+| `POST` | `/api/auth/reset-password/request` | Запит на скидання пароля |
+| `POST` | `/api/auth/reset-password/confirm` | Встановлення нового пароля |
 
 ### Users
 
 | Method | URL | Опис |
 |---|---|---|
-| `GET` | `/api/users/me` | Дані поточного користувача |
-| `PATCH` | `/api/users/avatar` | Оновлення аватара через Cloudinary |
+| `GET`   | `/api/users/me` | Профіль поточного користувача (кешується в Redis) |
+| `PATCH` | `/api/users/avatar` | Оновлення аватара (**тільки admin**) |
 
 ### Contacts
 
 | Method | URL | Опис |
 |---|---|---|
-| `GET` | `/api/contacts/?skip=0&limit=100` | Список контактів поточного користувача |
-| `POST` | `/api/contacts/` | Створення контакту |
-| `GET` | `/api/contacts/search?q=...` | Пошук контактів |
-| `GET` | `/api/contacts/birthdays` | Дні народження у найближчі 7 днів |
-| `GET` | `/api/contacts/{contact_id}` | Отримання контакту |
-| `PUT` | `/api/contacts/{contact_id}` | Оновлення контакту |
-| `DELETE` | `/api/contacts/{contact_id}` | Видалення контакту |
+| `GET`    | `/api/contacts/` | Список контактів |
+| `POST`   | `/api/contacts/` | Створення контакту |
+| `GET`    | `/api/contacts/search?q=...` | Пошук |
+| `GET`    | `/api/contacts/birthdays` | Найближчі 7 днів народження |
+| `GET`    | `/api/contacts/{id}` | Контакт за ID |
+| `PUT`    | `/api/contacts/{id}` | Оновлення |
+| `DELETE` | `/api/contacts/{id}` | Видалення |
 
-## Postman Collection
+## Деталі реалізації
 
-Файл колекції:
+### Redis-кеш
 
-```text
-Contacts_API.postman_collection.json
-```
+`get_current_user` перевіряє Redis за ключем `user:{username}`. При cache miss — читає з DB і записує в кеш з TTL `REDIS_CACHE_TTL` секунд. Кеш **не містить** `hashed_password` або `refresh_token`. При будь-якій зміні даних користувача (пароль, роль, email, logout) кеш інвалідується.
 
-Колекція потрібна для ручної перевірки API без написання окремого фронтенду. У ній зібрані запити для реєстрації, підтвердження email, логіну, роботи з користувачем, контактами, пошуком, днями народження та avatar upload.
+### Скидання пароля
 
-### Як користуватися
+1. `POST /api/auth/reset-password/request` — відправляє email з JWT-посиланням (TTL 1 год). Завжди повертає 200, щоб не розкривати, чи існує email.
+2. `POST /api/auth/reset-password/confirm` — перевіряє токен, оновлює пароль, відкликає refresh token, інвалідує Redis-кеш.
 
-1. Запустіть API:
+### Ролі
 
-   ```powershell
-   .\.venv\Scripts\python.exe -m uvicorn main:app --reload
-   ```
+Перший зареєстрований користувач отримує роль `admin`, решта — `user`. Endpoint `/api/users/avatar` захищено dependency `require_role(UserRole.admin)` — звичайний користувач отримає `403 Forbidden`.
 
-2. У Postman натисніть `Import` і виберіть `Contacts_API.postman_collection.json`.
+### Access/Refresh токени
 
-3. Перевірте collection variable `base_url`:
-
-   ```text
-   http://127.0.0.1:8000
-   ```
-
-4. Відкрийте `Auth / Register user` і в body введіть власні дані:
-
-   ```json
-   {
-     "username": "your_username",
-     "email": "your_real_email@example.com",
-     "password": "Password123!"
-   }
-   ```
-
-   Після успішної реєстрації колекція автоматично збереже `username`, `email` та `password` у collection variables.
-
-5. Підтвердіть email:
-
-   - якщо налаштована пошта, перейдіть за посиланням із листа;
-   - або вставте token з листа у collection variable `verify_token` і виконайте `Confirm email by token`;
-   - для локальної перевірки без пошти можна вручну виставити `confirmed=true` у БД.
-
-6. Виконайте `Auth / Login`.
-
-   Після успішного login колекція автоматично збереже `access_token`. Далі захищені запити використовують його як Bearer token.
-
-7. Для контактів:
-
-   - `Create random contact` створює випадковий контакт;
-   - `List contacts` показує список контактів;
-   - `Search contacts - manual` дозволяє вручну ввести `q` у Params;
-   - `Search contacts - no matches` перевіряє сценарій без результатів;
-   - `Search contacts - empty query` перевіряє валідацію порожнього пошуку;
-   - `Create upcoming birthday contact` створює контакт із днем народження через 3 дні;
-   - `Upcoming birthdays` перевіряє вибірку днів народження у найближчі 7 днів.
-
-8. Для `Update avatar`:
-
-   - відкрийте `Users / Update avatar`;
-   - у `Body -> form-data` виберіть поле `file`;
-   - оберіть файл зображення;
-   - переконайтесь, що Cloudinary credentials у `.env` мають права на upload/create.
-
-## Поведінка відповідей
-
-- При повторній реєстрації з існуючим email або username API повертає `409 Conflict`.
-- При неправильному login або паролі API повертає `401 Unauthorized`.
-- Якщо email не підтверджений, login повертає `401 Unauthorized`.
-- Захищені маршрути без Bearer token повертають `401 Unauthorized`.
-- Створення ресурсу повертає `201 Created`.
-- Видалення контакту повертає повідомлення:
-
-```json
-{
-  "message": "Contact deleted successfully"
-}
-```
-
-- Пошук без результатів повертає:
-
-```json
-{
-  "message": "No contacts found",
-  "count": 0,
-  "contacts": []
-}
-```
+- **Access token** — TTL 15 хв, поле `token_type: "access"`.
+- **Refresh token** — TTL 7 днів, поле `token_type: "refresh"`, зберігається hash в DB.
+- `POST /api/auth/refresh` — приймає refresh token, перевіряє тип і відповідність у DB, повертає нову пару.
+- Logout відкликає refresh token (встановлює `NULL` в DB).
 
 ## Безпека
 
-- Паролі користувачів зберігаються тільки у вигляді bcrypt hash.
-- JWT secret, SMTP password, Cloudinary credentials та DB credentials читаються з `.env`.
-- `.env`, virtualenv, cache-файли та локальні службові папки ігноруються через `.gitignore`.
-- Користувач має доступ тільки до власних контактів.
-
-## Перевірка
-
-Базова перевірка після запуску:
-
-```powershell
-.\.venv\Scripts\python.exe -m alembic current
-```
-
-Очікуваний результат — поточна revision з позначкою `(head)`.
-
-Також можна відкрити Swagger UI:
-
-```text
-http://127.0.0.1:8000/docs
-```
+- Паролі — тільки bcrypt hash.
+- JWT secrets, SMTP, Cloudinary credentials — тільки через `.env`.
+- Жодних hardcoded секретів у коді.
+- Кеш не зберігає `hashed_password` або `refresh_token`.

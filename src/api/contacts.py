@@ -1,3 +1,5 @@
+"""Contacts API router — CRUD operations for user contacts."""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
