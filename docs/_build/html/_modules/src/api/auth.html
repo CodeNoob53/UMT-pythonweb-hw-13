@@ -78,19 +78,21 @@
     <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
     <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UserResponse</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a new user and send an email verification link.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a new user and enqueue an email verification send.</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        user_data: Registration payload (username, email, password).</span>
-<span class="sd">        background_tasks: FastAPI background tasks runner.</span>
-<span class="sd">        request: Incoming HTTP request (used to build base URL).</span>
-<span class="sd">        db: Async DB session.</span>
+<span class="sd">    The endpoint hashes the provided password, creates the user record,</span>
+<span class="sd">    and schedules `send_email` as a background task so the HTTP request</span>
+<span class="sd">    is not blocked by network I/O.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        HTTPException 409: If email or username already exists.</span>
+<span class="sd">        HTTPException 409: If the email or username is already taken.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        The newly created user.</span>
+<span class="sd">        The created `UserResponse` object (without raw password).</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        curl -X POST &quot;{base_url}/auth/register&quot; -H &quot;Content-Type: application/json&quot; \</span>
+<span class="sd">            -d &#39;{&quot;username&quot;:&quot;alice&quot;,&quot;email&quot;:&quot;alice@example.com&quot;,&quot;password&quot;:&quot;secret&quot;}&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">user_service</span> <span class="o">=</span> <span class="n">UserService</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
 
@@ -122,17 +124,21 @@
     <span class="n">form_data</span><span class="p">:</span> <span class="n">OAuth2PasswordRequestForm</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(),</span>
     <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Token</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Authenticate a user and return an access + refresh token pair.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Authenticate credentials and return an `access_token`/`refresh_token` pair.</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        form_data: OAuth2 form with ``username`` and ``password``.</span>
-<span class="sd">        db: Async DB session.</span>
+<span class="sd">    On successful authentication the refresh token is stored in the DB</span>
+<span class="sd">    for rotation and revocation, and the user cache is invalidated so</span>
+<span class="sd">    subsequent requests read the latest user state.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        HTTPException 401: If credentials are invalid or email is not confirmed.</span>
+<span class="sd">        HTTPException 401: If credentials are invalid or the account is unconfirmed.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        JWT access token, refresh token, and token type.</span>
+<span class="sd">        A `Token` containing `access_token`, `refresh_token`, and `token_type`.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        curl -X POST &quot;{base_url}/auth/login&quot; -H &quot;Content-Type: application/x-www-form-urlencoded&quot; \</span>
+<span class="sd">            -d &#39;username=alice&amp;password=secret&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">user_service</span> <span class="o">=</span> <span class="n">UserService</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
     <span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">user_service</span><span class="o">.</span><span class="n">get_user_by_username</span><span class="p">(</span><span class="n">form_data</span><span class="o">.</span><span class="n">username</span><span class="p">)</span>
@@ -180,6 +186,10 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        New JWT access token, new refresh token, and token type.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        curl -X POST &quot;{base_url}/auth/refresh&quot; -H &quot;Content-Type: application/json&quot; \</span>
+<span class="sd">            -d &#39;{&quot;refresh_token&quot;:&quot;&lt;your_refresh_token_here&gt;&quot;}&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">jose</span><span class="w"> </span><span class="kn">import</span> <span class="n">JWTError</span><span class="p">,</span> <span class="n">jwt</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">src.conf.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">settings</span>
@@ -296,6 +306,10 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Generic confirmation message.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        curl -X POST &quot;{base_url}/auth/reset-password/request&quot; -H &quot;Content-Type: application/json&quot; \</span>
+<span class="sd">            -d &#39;{&quot;email&quot;:&quot;alice@example.com&quot;}&#39;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">user_service</span> <span class="o">=</span> <span class="n">UserService</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
     <span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">user_service</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">email</span><span class="p">)</span>

@@ -43,8 +43,196 @@
             
   <section id="services">
 <h1>Services<a class="headerlink" href="#services" title="Link to this heading">¶</a></h1>
-<section id="auth">
-<h2>auth<a class="headerlink" href="#auth" title="Link to this heading">¶</a></h2>
+<section id="module-src.services.auth">
+<span id="auth"></span><h2>auth<a class="headerlink" href="#module-src.services.auth" title="Link to this heading">¶</a></h2>
+<p>Authentication helpers: JWT tokens, password hashing, and current-user dependency.</p>
+<p>This module provides utilities to create access/refresh/email/password-reset
+tokens, verify them, and a <cite>get_current_user</cite> FastAPI dependency that
+integrates Redis caching to avoid repeated DB lookups.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="src.services.auth.Hash">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">Hash</span></span><a class="reference internal" href="_modules/src/services/auth.html#Hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.Hash" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Password hashing utilities using bcrypt.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="src.services.auth.Hash.get_password_hash">
+<span class="sig-name descname"><span class="pre">get_password_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#Hash.get_password_hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.Hash.get_password_hash" title="Link to this definition">¶</a></dt>
+<dd><p>Return a bcrypt hash of password.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.services.auth.Hash.verify_password">
+<span class="sig-name descname"><span class="pre">verify_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plain_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hashed_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#Hash.verify_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.Hash.verify_password" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if plain_password matches the bcrypt hash.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.create_access_token">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">create_access_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expires_delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#create_access_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.create_access_token" title="Link to this definition">¶</a></dt>
+<dd><p>Create a short-lived JWT access token.</p>
+<p>The token payload will include an <code class="docutils literal notranslate"><span class="pre">exp</span></code> claim set to now + TTL
+and a <code class="docutils literal notranslate"><span class="pre">token_type</span></code> of <code class="docutils literal notranslate"><span class="pre">access</span></code>. The <cite>data</cite> argument should
+include a <code class="docutils literal notranslate"><span class="pre">sub</span></code> key (the username) which is later used by
+<cite>get_current_user</cite> to lookup the user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – Payload dict; must include <code class="docutils literal notranslate"><span class="pre">sub</span></code> (username).</p></li>
+<li><p><strong>expires_delta</strong> – Override TTL in seconds; defaults to
+<code class="docutils literal notranslate"><span class="pre">settings.JWT_ACCESS_EXPIRATION_SECONDS</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Encoded JWT string (HS256 by default).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.create_email_token">
+<span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">create_email_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#create_email_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.create_email_token" title="Link to this definition">¶</a></dt>
+<dd><p>Create a 7-day JWT for email verification.</p>
+<p>The token_type claim will be set to <code class="docutils literal notranslate"><span class="pre">email</span></code> and an <code class="docutils literal notranslate"><span class="pre">iat</span></code> issued
+at timestamp is included to help debugging. This token is intended
+to be sent to users in email verification links.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> – Payload dict; must include <code class="docutils literal notranslate"><span class="pre">sub</span></code> (email).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Encoded JWT string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.create_password_reset_token">
+<span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">create_password_reset_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#create_password_reset_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.create_password_reset_token" title="Link to this definition">¶</a></dt>
+<dd><p>Create a 1-hour JWT used to authorize password resets.</p>
+<p>The token will carry <code class="docutils literal notranslate"><span class="pre">sub</span></code> set to the user’s email and
+<code class="docutils literal notranslate"><span class="pre">token_type</span></code> set to <code class="docutils literal notranslate"><span class="pre">password_reset</span></code>. Short expiry reduces the
+risk window if a reset email is intercepted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>email</strong> – The user’s email address embedded as <code class="docutils literal notranslate"><span class="pre">sub</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Encoded JWT string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.create_refresh_token">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">create_refresh_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expires_delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#create_refresh_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.create_refresh_token" title="Link to this definition">¶</a></dt>
+<dd><p>Create a long-lived JWT refresh token.</p>
+<p>The refresh token includes a longer TTL and a <code class="docutils literal notranslate"><span class="pre">token_type</span></code> of
+<code class="docutils literal notranslate"><span class="pre">refresh</span></code>. It is stored in the database (user.refresh_token) so
+that refresh token rotation and revocation can be enforced.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – Payload dict; must include <code class="docutils literal notranslate"><span class="pre">sub</span></code> (username).</p></li>
+<li><p><strong>expires_delta</strong> – Override TTL in seconds; defaults to
+<code class="docutils literal notranslate"><span class="pre">settings.JWT_REFRESH_EXPIRATION_SECONDS</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Encoded JWT string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.get_current_user">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">get_current_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(dependency=&lt;fastapi.security.oauth2.OAuth2PasswordBearer</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">db</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">AsyncSession</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(dependency=&lt;function</span> <span class="pre">get_db&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="database.html#src.database.models.User" title="src.database.models.User"><span class="pre">User</span></a></span></span><a class="reference internal" href="_modules/src/services/auth.html#get_current_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.get_current_user" title="Link to this definition">¶</a></dt>
+<dd><p>FastAPI dependency that validates an access token and returns the User.</p>
+<dl class="simple">
+<dt>Behaviour:</dt><dd><ul class="simple">
+<li><p>Decodes and validates the JWT access token (must have <code class="docutils literal notranslate"><span class="pre">token_type</span></code> == “access”).</p></li>
+<li><dl class="simple">
+<dt>Attempts to load a cached user payload from Redis. On hit, the</dt><dd><p>payload is converted back into an ORM <code class="docutils literal notranslate"><span class="pre">User</span></code>-like object and
+returned to the route handler without querying the DB.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>On cache miss, the DB is queried via <cite>UserService</cite>, and the safe</dt><dd><p>user payload is stored in Redis for future requests.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+<dt>Security:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>Sensitive fields (<code class="docutils literal notranslate"><span class="pre">hashed_password</span></code>, <code class="docutils literal notranslate"><span class="pre">refresh_token</span></code>) are not</dt><dd><p>stored in the cache (they are set to safe defaults).</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>HTTPException</strong> – 401 if token is invalid or user cannot be located.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.get_email_from_token">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">get_email_from_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#get_email_from_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.get_email_from_token" title="Link to this definition">¶</a></dt>
+<dd><p>Decode an email verification JWT and return its <code class="docutils literal notranslate"><span class="pre">sub</span></code> (email).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>HTTPException</strong> – 422 if the token cannot be decoded or the payload
+    is missing the expected <code class="docutils literal notranslate"><span class="pre">sub</span></code> claim.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.invalidate_user_cache">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">invalidate_user_cache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#invalidate_user_cache"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.invalidate_user_cache" title="Link to this definition">¶</a></dt>
+<dd><p>Remove a user’s cache entry from Redis.</p>
+<p>This should be called after mutations that change a user’s public
+profile or authentication state (password change, confirmation,
+refresh token rotation, role change, avatar update).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.require_role">
+<span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">require_role</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">required_role</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="database.html#src.database.models.UserRole" title="src.database.models.UserRole"><span class="pre">UserRole</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/src/services/auth.html#require_role"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.require_role" title="Link to this definition">¶</a></dt>
+<dd><p>Return a FastAPI dependency that enforces the given role.</p>
+<p>The returned dependency expects <cite>get_current_user</cite> and raises
+<code class="docutils literal notranslate"><span class="pre">HTTPException(status_code=403)</span></code> if the user’s role does not
+exactly match <cite>required_role</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>required_role</strong> – The role the current user must have.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An async dependency callable usable in route definitions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.auth.verify_password_reset_token">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.auth.</span></span><span class="sig-name descname"><span class="pre">verify_password_reset_token</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/src/services/auth.html#verify_password_reset_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.auth.verify_password_reset_token" title="Link to this definition">¶</a></dt>
+<dd><p>Decode a password reset JWT and return the embedded email.</p>
+<p>The function validates that the token’s <code class="docutils literal notranslate"><span class="pre">token_type</span></code> equals
+<code class="docutils literal notranslate"><span class="pre">password_reset</span></code> and that a <code class="docutils literal notranslate"><span class="pre">sub</span></code> claim exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>HTTPException</strong> – 400 if the token is invalid, expired, or not a
+    password-reset token.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 <section id="module-src.services.users">
 <span id="users"></span><h2>users<a class="headerlink" href="#module-src.services.users" title="Link to this heading">¶</a></h2>
@@ -98,8 +286,41 @@
 </dd></dl>
 
 </section>
-<section id="email">
-<h2>email<a class="headerlink" href="#email" title="Link to this heading">¶</a></h2>
+<section id="module-src.services.email">
+<span id="email"></span><h2>email<a class="headerlink" href="#module-src.services.email" title="Link to this heading">¶</a></h2>
+<p>Email utilities for sending verification and password reset messages.</p>
+<p>This module wraps <cite>fastapi-mail</cite> to send templated emails for account
+verification and password reset flows.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.email.send_email">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.email.</span></span><span class="sig-name descname"><span class="pre">send_email</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">EmailStr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/src/services/email.html#send_email"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.email.send_email" title="Link to this definition">¶</a></dt>
+<dd><p>Send an email verification message to a newly registered user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> – Recipient’s email address.</p></li>
+<li><p><strong>username</strong> – Recipient’s display name.</p></li>
+<li><p><strong>host</strong> – Base URL of the application, used to build the confirmation link.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.services.email.send_password_reset_email">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.services.email.</span></span><span class="sig-name descname"><span class="pre">send_password_reset_email</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">EmailStr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/src/services/email.html#send_password_reset_email"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.services.email.send_password_reset_email" title="Link to this definition">¶</a></dt>
+<dd><p>Send a password reset link to the user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> – Recipient’s email address.</p></li>
+<li><p><strong>username</strong> – Recipient’s display name.</p></li>
+<li><p><strong>host</strong> – Base URL of the application, used to build the reset link.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 <section id="module-src.services.redis_cache">
 <span id="redis-cache"></span><h2>redis_cache<a class="headerlink" href="#module-src.services.redis_cache" title="Link to this heading">¶</a></h2>
@@ -179,7 +400,23 @@ via <cite>user_cache_key</cite>.</p>
     <h3><a href="index.html">Table of Contents</a></h3>
     <ul>
 <li><a class="reference internal" href="#">Services</a><ul>
-<li><a class="reference internal" href="#auth">auth</a></li>
+<li><a class="reference internal" href="#module-src.services.auth">auth</a><ul>
+<li><a class="reference internal" href="#src.services.auth.Hash"><code class="docutils literal notranslate"><span class="pre">Hash</span></code></a><ul>
+<li><a class="reference internal" href="#src.services.auth.Hash.get_password_hash"><code class="docutils literal notranslate"><span class="pre">Hash.get_password_hash()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.Hash.verify_password"><code class="docutils literal notranslate"><span class="pre">Hash.verify_password()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#src.services.auth.create_access_token"><code class="docutils literal notranslate"><span class="pre">create_access_token()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.create_email_token"><code class="docutils literal notranslate"><span class="pre">create_email_token()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.create_password_reset_token"><code class="docutils literal notranslate"><span class="pre">create_password_reset_token()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.create_refresh_token"><code class="docutils literal notranslate"><span class="pre">create_refresh_token()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.get_current_user"><code class="docutils literal notranslate"><span class="pre">get_current_user()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.get_email_from_token"><code class="docutils literal notranslate"><span class="pre">get_email_from_token()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.invalidate_user_cache"><code class="docutils literal notranslate"><span class="pre">invalidate_user_cache()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.require_role"><code class="docutils literal notranslate"><span class="pre">require_role()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.auth.verify_password_reset_token"><code class="docutils literal notranslate"><span class="pre">verify_password_reset_token()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#module-src.services.users">users</a><ul>
 <li><a class="reference internal" href="#src.services.users.UserService"><code class="docutils literal notranslate"><span class="pre">UserService</span></code></a><ul>
 <li><a class="reference internal" href="#src.services.users.UserService.confirmed_email"><code class="docutils literal notranslate"><span class="pre">UserService.confirmed_email()</span></code></a></li>
@@ -193,7 +430,11 @@ via <cite>user_cache_key</cite>.</p>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#email">email</a></li>
+<li><a class="reference internal" href="#module-src.services.email">email</a><ul>
+<li><a class="reference internal" href="#src.services.email.send_email"><code class="docutils literal notranslate"><span class="pre">send_email()</span></code></a></li>
+<li><a class="reference internal" href="#src.services.email.send_password_reset_email"><code class="docutils literal notranslate"><span class="pre">send_password_reset_email()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#module-src.services.redis_cache">redis_cache</a><ul>
 <li><a class="reference internal" href="#src.services.redis_cache.cache_delete"><code class="docutils literal notranslate"><span class="pre">cache_delete()</span></code></a></li>
 <li><a class="reference internal" href="#src.services.redis_cache.cache_get"><code class="docutils literal notranslate"><span class="pre">cache_get()</span></code></a></li>

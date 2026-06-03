@@ -177,23 +177,23 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-        """FastAPI dependency that validates an access token and returns the User.
+    """FastAPI dependency that validates an access token and returns the User.
 
-        Behaviour:
-            - Decodes and validates the JWT access token (must have ``token_type`` == "access").
-            - Attempts to load a cached user payload from Redis. On hit, the
-                payload is converted back into an ORM ``User``-like object and
-                returned to the route handler without querying the DB.
-            - On cache miss, the DB is queried via `UserService`, and the safe
-                user payload is stored in Redis for future requests.
+    Behaviour:
+        - Decodes and validates the JWT access token (must have ``token_type`` == "access").
+        - Attempts to load a cached user payload from Redis. On hit, the
+            payload is converted back into an ORM ``User``-like object and
+            returned to the route handler without querying the DB.
+        - On cache miss, the DB is queried via `UserService`, and the safe
+            user payload is stored in Redis for future requests.
 
-        Security:
-            - Sensitive fields (``hashed_password``, ``refresh_token``) are not
-                stored in the cache (they are set to safe defaults).
+    Security:
+        - Sensitive fields (``hashed_password``, ``refresh_token``) are not
+            stored in the cache (they are set to safe defaults).
 
-        Raises:
-            HTTPException: 401 if token is invalid or user cannot be located.
-        """
+    Raises:
+        HTTPException: 401 if token is invalid or user cannot be located.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

@@ -70,6 +70,9 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        User profile data.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        curl -H &quot;Authorization: Bearer &lt;access_token&gt;&quot; &quot;{base_url}/users/me&quot;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">user</span></div>
 
@@ -99,6 +102,10 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Updated user profile with new avatar URL.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        curl -X PATCH &quot;{base_url}/users/avatar&quot; -H &quot;Authorization: Bearer &lt;access_token&gt;&quot; \</span>
+<span class="sd">            -F &quot;file=@/path/to/avatar.jpg&quot;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>

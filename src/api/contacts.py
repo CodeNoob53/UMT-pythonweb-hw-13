@@ -30,13 +30,13 @@ async def get_contacts(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = ContactRepository(db)
-    return await repo.get_contacts(user, skip, limit)
-    
-    """
+    """Return user contacts with optional pagination.
+
     Example:
         curl -H "Authorization: Bearer <access_token>" "{base_url}/contacts/?skip=0&limit=20"
     """
+    repo = ContactRepository(db)
+    return await repo.get_contacts(user, skip, limit)
 
 
 @router.get("/search", response_model=ContactSearchResponse)
@@ -82,14 +82,14 @@ async def create_contact(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = ContactRepository(db)
-    return await repo.create_contact(body, user)
-    
-    """
+    """Create a new contact for the current user.
+
     Example:
         curl -X POST "{base_url}/contacts/" -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" \
             -d '{"name":"Bob","email":"bob@example.com","phone":"+123456789"}'
     """
+    repo = ContactRepository(db)
+    return await repo.create_contact(body, user)
 
 
 @router.put("/{contact_id}", response_model=ContactResponse)

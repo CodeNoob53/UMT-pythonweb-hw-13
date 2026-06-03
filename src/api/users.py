@@ -61,11 +61,11 @@ async def update_avatar(
 
     Returns:
         Updated user profile with new avatar URL.
-    """
-    
+
     Example:
         curl -X PATCH "{base_url}/users/avatar" -H "Authorization: Bearer <access_token>" \
             -F "file=@/path/to/avatar.jpg"
+    """
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar file is required"
