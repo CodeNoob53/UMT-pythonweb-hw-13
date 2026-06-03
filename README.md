@@ -6,7 +6,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7-red)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%2B-red)
 ![JWT](https://img.shields.io/badge/Auth-JWT_access%2Frefresh-black)
-![Coverage](https://img.shields.io/badge/coverage-78%25-green)
+![Coverage](https://img.shields.io/badge/coverage-85%25-green)
 
 REST API для керування контактами з JWT access/refresh токенами, Redis-кешуванням,
 скиданням пароля, ролями користувачів та автентифікацією.
@@ -45,6 +45,7 @@ REST API для керування контактами з JWT access/refresh т
 ├── tests/                 # unit + integration тести
 ├── main.py                # FastAPI app entry point
 ├── pyproject.toml
+├── render.yaml            # Render Blueprint (API + Postgres + Redis)
 ├── .env.example
 └── docker-compose.yml     # локальна розробка (PostgreSQL + Redis)
 ```
@@ -56,6 +57,9 @@ REST API для керування контактами з JWT access/refresh т
 ```env
 DB_URL=postgresql+asyncpg://postgres:your_db_pass@localhost:5432/contacts_db
 
+# Used by docker-compose to set the DB container password (must match DB_URL)
+POSTGRES_PASSWORD=your_db_pass
+
 JWT_SECRET=your_super_secret_key_here_min_32_chars
 JWT_ALGORITHM=HS256
 JWT_ACCESS_EXPIRATION_SECONDS=900
@@ -63,6 +67,9 @@ JWT_REFRESH_EXPIRATION_SECONDS=604800
 
 REDIS_URL=redis://localhost:6379/0
 REDIS_CACHE_TTL=900
+
+# Comma-separated CORS allowed origins (no trailing slashes)
+CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 
 MAIL_USERNAME=example@gmail.com
 MAIL_PASSWORD=your_app_password
@@ -112,6 +119,37 @@ docker compose down
 
 Перед запуском — заповніть `.env`. `DB_URL` і `REDIS_URL` автоматично перевизначаються
 через `environment:` у `docker-compose.yml`.
+
+## Деплой на Render
+
+У репозиторії є `render.yaml` для Render Blueprint. Він створює:
+
+- Docker Web Service для FastAPI застосунку.
+- Render Postgres database.
+- Render Key Value instance для Redis-сумісного кешу.
+
+При створенні Blueprint Render автоматично підставляє:
+
+- `DB_URL` з Render Postgres `connectionString`;
+- `REDIS_URL` з Render Key Value `connectionString`;
+- `JWT_SECRET` через `generateValue`.
+
+У коді `DB_URL` автоматично нормалізується з Render-формату `postgresql://...`
+до `postgresql+asyncpg://...`, який потрібен для async SQLAlchemy.
+
+Після створення Blueprint у Render Dashboard потрібно вручну заповнити секрети:
+
+```text
+MAIL_USERNAME
+MAIL_PASSWORD
+MAIL_FROM
+CLD_NAME
+CLD_API_KEY
+CLD_API_SECRET
+```
+
+Якщо Render видасть іншу адресу сервісу або ви додасте frontend-домен, оновіть
+`CORS_ORIGINS` у Render Dashboard.
 
 ## Тести
 
