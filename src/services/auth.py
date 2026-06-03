@@ -169,7 +169,14 @@ async def get_current_user(
     # --- Redis cache lookup ---
     cached = await cache_get(user_cache_key(username))
     if cached is not None:
-        # Reconstruct a lightweight User ORM object from the cache dict
+        # Reconstruct a lightweight User ORM object from the cache dict.
+        # Ensure `created_at` is converted back to a datetime if stored as ISO.
+        if cached.get("created_at"):
+            try:
+                cached["created_at"] = datetime.fromisoformat(cached["created_at"])
+            except Exception:
+                # If parsing fails, leave as-is; the ORM may accept None or string in tests.
+                pass
         user = User(**{k: v for k, v in cached.items()})
         return user
 
