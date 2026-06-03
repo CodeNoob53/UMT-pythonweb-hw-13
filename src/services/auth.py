@@ -11,6 +11,7 @@ from src.conf.config import settings
 from src.database.db import get_db
 from src.database.models import User, UserRole
 from src.services.redis_cache import cache_get, cache_set, cache_delete, user_cache_key
+from src.schemas import UserResponse
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -195,17 +196,24 @@ async def get_current_user(
 
 async def _cache_user(user: User) -> None:
     """Store safe user fields in Redis with the configured TTL."""
-    payload = {
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "avatar": user.avatar,
-        "confirmed": user.confirmed,
-        "role": user.role,
-        "hashed_password": "",   # intentionally blank — required by ORM constructor
-        "refresh_token": None,
-        "created_at": user.created_at.isoformat() if user.created_at else None,
-    }
+    # Use Pydantic schema to produce a stable payload containing only safe fields.
+    try:
+        pyd = UserResponse.model_validate(user)
+        payload = pyd.model_dump()
+    except Exception:
+        # Fallback to manual payload if Pydantic construction fails
+        payload = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "avatar": user.avatar,
+            "confirmed": user.confirmed,
+            "role": user.role,
+        }
+    # Ensure sensitive fields are absent or blank as expected by callers/tests
+    payload.setdefault("hashed_password", "")
+    payload.setdefault("refresh_token", None)
+    payload["created_at"] = user.created_at.isoformat() if getattr(user, "created_at", None) else None
     await cache_set(user_cache_key(user.username), payload, settings.REDIS_CACHE_TTL)
 
 
