@@ -51,6 +51,10 @@ async def register_user(
 
     Returns:
         The created `UserResponse` object (without raw password).
+
+    Example:
+        curl -X POST "{base_url}/auth/register" -H "Content-Type: application/json" \
+            -d '{"username":"alice","email":"alice@example.com","password":"secret"}'
     """
     user_service = UserService(db)
 
@@ -90,6 +94,10 @@ async def login_user(
 
     Returns:
         A `Token` containing `access_token`, `refresh_token`, and `token_type`.
+
+    Example:
+        curl -X POST "{base_url}/auth/login" -H "Content-Type: application/x-www-form-urlencoded" \
+            -d 'username=alice&password=secret'
     """
     user_service = UserService(db)
     user = await user_service.get_user_by_username(form_data.username)
@@ -134,6 +142,10 @@ async def refresh_tokens(
 
     Returns:
         New JWT access token, new refresh token, and token type.
+
+    Example:
+        curl -X POST "{base_url}/auth/refresh" -H "Content-Type: application/json" \
+            -d '{"refresh_token":"<your_refresh_token_here>"}'
     """
     from jose import JWTError, jwt
     from src.conf.config import settings
@@ -241,6 +253,10 @@ async def request_password_reset(
 
     Returns:
         Generic confirmation message.
+
+    Example:
+        curl -X POST "{base_url}/auth/reset-password/request" -H "Content-Type: application/json" \
+            -d '{"email":"alice@example.com"}'
     """
     user_service = UserService(db)
     user = await user_service.get_user_by_email(body.email)

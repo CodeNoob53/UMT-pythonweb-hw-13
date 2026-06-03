@@ -32,6 +32,11 @@ async def get_contacts(
 ):
     repo = ContactRepository(db)
     return await repo.get_contacts(user, skip, limit)
+    
+    """
+    Example:
+        curl -H "Authorization: Bearer <access_token>" "{base_url}/contacts/?skip=0&limit=20"
+    """
 
 
 @router.get("/search", response_model=ContactSearchResponse)
@@ -79,6 +84,12 @@ async def create_contact(
 ):
     repo = ContactRepository(db)
     return await repo.create_contact(body, user)
+    
+    """
+    Example:
+        curl -X POST "{base_url}/contacts/" -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" \
+            -d '{"name":"Bob","email":"bob@example.com","phone":"+123456789"}'
+    """
 
 
 @router.put("/{contact_id}", response_model=ContactResponse)
