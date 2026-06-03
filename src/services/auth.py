@@ -41,12 +41,18 @@ class Hash:
 async def create_access_token(data: dict, expires_delta: Optional[int] = None) -> str:
     """Create a short-lived JWT access token.
 
+    The token payload will include an ``exp`` claim set to now + TTL
+    and a ``token_type`` of ``access``. The `data` argument should
+    include a ``sub`` key (the username) which is later used by
+    `get_current_user` to lookup the user.
+
     Args:
         data: Payload dict; must include ``sub`` (username).
-        expires_delta: Override TTL in seconds; defaults to settings value.
+        expires_delta: Override TTL in seconds; defaults to
+            ``settings.JWT_ACCESS_EXPIRATION_SECONDS``.
 
     Returns:
-        Encoded JWT string.
+        Encoded JWT string (HS256 by default).
     """
     to_encode = data.copy()
     ttl = expires_delta if expires_delta else settings.JWT_ACCESS_EXPIRATION_SECONDS
@@ -58,9 +64,14 @@ async def create_access_token(data: dict, expires_delta: Optional[int] = None) -
 async def create_refresh_token(data: dict, expires_delta: Optional[int] = None) -> str:
     """Create a long-lived JWT refresh token.
 
+    The refresh token includes a longer TTL and a ``token_type`` of
+    ``refresh``. It is stored in the database (user.refresh_token) so
+    that refresh token rotation and revocation can be enforced.
+
     Args:
         data: Payload dict; must include ``sub`` (username).
-        expires_delta: Override TTL in seconds; defaults to settings value.
+        expires_delta: Override TTL in seconds; defaults to
+            ``settings.JWT_REFRESH_EXPIRATION_SECONDS``.
 
     Returns:
         Encoded JWT string.
@@ -75,6 +86,10 @@ async def create_refresh_token(data: dict, expires_delta: Optional[int] = None) 
 def create_email_token(data: dict) -> str:
     """Create a 7-day JWT for email verification.
 
+    The token_type claim will be set to ``email`` and an ``iat`` issued
+    at timestamp is included to help debugging. This token is intended
+    to be sent to users in email verification links.
+
     Args:
         data: Payload dict; must include ``sub`` (email).
 
@@ -88,7 +103,11 @@ def create_email_token(data: dict) -> str:
 
 
 def create_password_reset_token(email: str) -> str:
-    """Create a 1-hour JWT for password reset.
+    """Create a 1-hour JWT used to authorize password resets.
+
+    The token will carry ``sub`` set to the user's email and
+    ``token_type`` set to ``password_reset``. Short expiry reduces the
+    risk window if a reset email is intercepted.
 
     Args:
         email: The user's email address embedded as ``sub``.
@@ -106,10 +125,11 @@ def create_password_reset_token(email: str) -> str:
 
 
 async def get_email_from_token(token: str) -> str:
-    """Decode an email-verification JWT and return the email.
+    """Decode an email verification JWT and return its ``sub`` (email).
 
     Raises:
-        HTTPException 422: If the token is invalid or missing ``sub``.
+        HTTPException: 422 if the token cannot be decoded or the payload
+            is missing the expected ``sub`` claim.
     """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
@@ -126,10 +146,14 @@ async def get_email_from_token(token: str) -> str:
 
 
 async def verify_password_reset_token(token: str) -> str:
-    """Decode a password-reset JWT and return the email.
+    """Decode a password reset JWT and return the embedded email.
+
+    The function validates that the token's ``token_type`` equals
+    ``password_reset`` and that a ``sub`` claim exists.
 
     Raises:
-        HTTPException 400: If the token is invalid, expired, or has the wrong type.
+        HTTPException: 400 if the token is invalid, expired, or not a
+            password-reset token.
     """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
@@ -153,13 +177,23 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """FastAPI dependency: validate JWT access token and return the current user.
+        """FastAPI dependency that validates an access token and returns the User.
 
-    Checks Redis cache first; falls back to DB on cache miss and re-populates cache.
+        Behaviour:
+            - Decodes and validates the JWT access token (must have ``token_type`` == "access").
+            - Attempts to load a cached user payload from Redis. On hit, the
+                payload is converted back into an ORM ``User``-like object and
+                returned to the route handler without querying the DB.
+            - On cache miss, the DB is queried via `UserService`, and the safe
+                user payload is stored in Redis for future requests.
 
-    Raises:
-        HTTPException 401: If the token is invalid or the user does not exist.
-    """
+        Security:
+            - Sensitive fields (``hashed_password``, ``refresh_token``) are not
+                stored in the cache (they are set to safe defaults).
+
+        Raises:
+            HTTPException: 401 if token is invalid or user cannot be located.
+        """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -202,7 +236,13 @@ async def get_current_user(
 
 
 async def _cache_user(user: User) -> None:
-    """Store safe user fields in Redis with the configured TTL."""
+    """Store safe user fields in Redis with the configured TTL.
+
+    Uses `UserResponse` to serialize a predictable set of fields that
+    are safe to expose to other processes. Always includes
+    ``hashed_password`` (empty string) and ``refresh_token`` (None)
+    keys for backward compatibility with existing consumers.
+    """
     # Use Pydantic schema to produce a stable payload containing only safe fields.
     try:
         pyd = UserResponse.model_validate(user)
@@ -227,19 +267,25 @@ async def _cache_user(user: User) -> None:
 async def invalidate_user_cache(username: str) -> None:
     """Remove a user's cache entry from Redis.
 
-    Call this after any mutation (password change, role update, email confirm, etc.).
+    This should be called after mutations that change a user's public
+    profile or authentication state (password change, confirmation,
+    refresh token rotation, role change, avatar update).
     """
     await cache_delete(user_cache_key(username))
 
 
 def require_role(required_role: UserRole):
-    """Return a FastAPI dependency that enforces the given minimum role.
+    """Return a FastAPI dependency that enforces the given role.
+
+    The returned dependency expects `get_current_user` and raises
+    ``HTTPException(status_code=403)`` if the user's role does not
+    exactly match `required_role`.
 
     Args:
         required_role: The role the current user must have.
 
     Returns:
-        An async dependency callable.
+        An async dependency callable usable in route definitions.
     """
     async def _check(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role != required_role:

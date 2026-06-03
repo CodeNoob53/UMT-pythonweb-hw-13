@@ -40,19 +40,17 @@ async def register_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
-    """Register a new user and send an email verification link.
+    """Register a new user and enqueue an email verification send.
 
-    Args:
-        user_data: Registration payload (username, email, password).
-        background_tasks: FastAPI background tasks runner.
-        request: Incoming HTTP request (used to build base URL).
-        db: Async DB session.
+    The endpoint hashes the provided password, creates the user record,
+    and schedules `send_email` as a background task so the HTTP request
+    is not blocked by network I/O.
 
     Raises:
-        HTTPException 409: If email or username already exists.
+        HTTPException 409: If the email or username is already taken.
 
     Returns:
-        The newly created user.
+        The created `UserResponse` object (without raw password).
     """
     user_service = UserService(db)
 
@@ -81,17 +79,17 @@ async def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
-    """Authenticate a user and return an access + refresh token pair.
+    """Authenticate credentials and return an `access_token`/`refresh_token` pair.
 
-    Args:
-        form_data: OAuth2 form with ``username`` and ``password``.
-        db: Async DB session.
+    On successful authentication the refresh token is stored in the DB
+    for rotation and revocation, and the user cache is invalidated so
+    subsequent requests read the latest user state.
 
     Raises:
-        HTTPException 401: If credentials are invalid or email is not confirmed.
+        HTTPException 401: If credentials are invalid or the account is unconfirmed.
 
     Returns:
-        JWT access token, refresh token, and token type.
+        A `Token` containing `access_token`, `refresh_token`, and `token_type`.
     """
     user_service = UserService(db)
     user = await user_service.get_user_by_username(form_data.username)
