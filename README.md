@@ -173,6 +173,66 @@ uv run sphinx-build -b html docs docs/_build/html
 
 Готова документація буде в `docs/_build/html/index.html`.
 
+## Postman Collection
+
+Файл `Contacts_API.postman_collection.json` — готова колекція запитів для ручного тестування всіх endpoints API.
+
+**Для чого:** дозволяє перевірити повний flow (реєстрація → підтвердження email → login → робота з контактами → logout) без написання коду. Кожен запит містить автоматичні тести (статус-коди, наявність полів) і пре-скрипти (генерація унікальних даних, збереження токенів між запитами).
+
+### Як імпортувати
+
+1. Відкрийте Postman.
+2. Натисніть **Import** → оберіть файл `Contacts_API.postman_collection.json`.
+
+### Налаштування base_url
+
+За замовчуванням `base_url` вказує на Render-деплой. Для локального тестування:
+
+1. Відкрийте колекцію → вкладка **Variables**.
+2. Змініть `base_url` на `http://127.0.0.1:8000`.
+
+### Рекомендований порядок запитів
+
+```
+Health / Root                        ← перевірка що API відповідає
+Auth / Register user                 ← реєстрація (перший user стає admin)
+  → відкрийте email, скопіюйте токен з посилання підтвердження
+  → вставте токен у змінну verify_token
+Auth / Confirm email by token        ← підтвердження email
+Auth / Login                         ← зберігає access_token і refresh_token автоматично
+Users / Get current user             ← перевірити роль (admin / user)
+Contacts / Create random contact     ← зберігає contact_id автоматично
+Contacts / Create upcoming birthday contact
+Contacts / List contacts
+Contacts / Get contact by id
+Contacts / Update contact
+Contacts / Search contacts - manual
+Contacts / Search contacts - no matches
+Contacts / Search contacts - empty query  ← очікує 422
+Contacts / Upcoming birthdays
+Contacts / Delete contact
+Contacts / Delete birthday contact
+Users / Update avatar (admin only)   ← оберіть файл зображення у Postman Body → form-data
+Auth / Refresh tokens                ← ротує обидва токени
+Auth / Request password reset        ← надсилає email; скопіюйте токен у reset_token
+Auth / Confirm password reset        ← встановлює новий пароль, оновлює змінну password
+Auth / Logout                        ← відкликає refresh token
+```
+
+### Змінні колекції
+
+| Змінна | Встановлюється | Опис |
+|---|---|---|
+| `base_url` | вручну | URL API |
+| `username` | Register (авто) | ім'я користувача |
+| `email` | Register (авто) | email |
+| `password` | вручну / Confirm reset (авто) | пароль |
+| `verify_token` | **вручну** (з email) | токен підтвердження email |
+| `reset_token` | **вручну** (з email) | токен скидання пароля |
+| `access_token` | Login / Refresh (авто) | JWT access token |
+| `refresh_token` | Login / Refresh (авто) | JWT refresh token |
+| `contact_id` | Create contact (авто) | ID створеного контакту |
+
 ## Основні API маршрути
 
 ### Auth
