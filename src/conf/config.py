@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, EmailStr
+from pydantic import ConfigDict, EmailStr, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     CLD_NAME: str
     CLD_API_KEY: int
     CLD_API_SECRET: str
+
+    @field_validator("DB_URL", mode="before")
+    @classmethod
+    def normalize_db_url(cls, value: str) -> str:
+        """Use asyncpg when Render provides a standard PostgreSQL URL."""
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
 
     model_config = ConfigDict(
         extra="ignore",

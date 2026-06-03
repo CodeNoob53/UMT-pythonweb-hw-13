@@ -1,0 +1,74 @@
+# Render Blueprint for the Contacts API.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: umt-pythonweb-hw-13
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      - key: DB_URL
+        fromDatabase:
+          name: umt-pythonweb-hw-13-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: umt-pythonweb-hw-13-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_EXPIRATION_SECONDS
+        value: "900"
+      - key: JWT_REFRESH_EXPIRATION_SECONDS
+        value: "604800"
+      - key: REDIS_CACHE_TTL
+        value: "900"
+      - key: CORS_ORIGINS
+        value: https://umt-pythonweb-hw-13.onrender.com,http://localhost:3000,http://localhost:8080
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_PORT
+        value: "465"
+      - key: MAIL_SERVER
+        value: smtp.gmail.com
+      - key: MAIL_FROM_NAME
+        value: Contacts API
+      - key: MAIL_STARTTLS
+        value: "False"
+      - key: MAIL_SSL_TLS
+        value: "True"
+      - key: USE_CREDENTIALS
+        value: "True"
+      - key: VALIDATE_CERTS
+        value: "True"
+      - key: CLD_NAME
+        sync: false
+      - key: CLD_API_KEY
+        sync: false
+      - key: CLD_API_SECRET
+        sync: false
+
+  - type: keyvalue
+    name: umt-pythonweb-hw-13-redis
+    plan: free
+    region: frankfurt
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: umt-pythonweb-hw-13-db
+    plan: free
+    region: frankfurt
+    databaseName: contacts_db
+    user: contacts_user
+    postgresMajorVersion: "16"
