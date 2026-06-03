@@ -6,13 +6,14 @@ from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
 
 from src.api import auth, contacts, users
+from src.conf.config import settings
 
 app = FastAPI(title="Contacts API")
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
-origins = ["http://localhost:3000", "http://localhost:8080"]
+origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,

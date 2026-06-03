@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_CACHE_TTL: int = 900
 
+    # Comma-separated list of allowed CORS origins.
+    # Example: "http://localhost:3000,https://myapp.render.com"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
+
     MAIL_USERNAME: EmailStr
     MAIL_PASSWORD: str
     MAIL_FROM: EmailStr

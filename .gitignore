@@ -32,6 +32,9 @@ dist/
 *.egg-info/
 pip-wheel-metadata/
 
+# Sphinx generated build artifacts
+docs/_build/
+
 # Local runtime files
 *.log
 *.pid

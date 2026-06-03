@@ -117,6 +117,36 @@ class TestLogout:
         assert resp.status_code == 200
         assert resp.json()["message"] == "Logged out successfully"
 
+    def test_logout_then_refresh_old_token_rejected(self, client):
+        """Full flow: login → /users/me (cache) → logout → refresh old token = 401."""
+        # 1. Login — get a valid refresh token stored in DB
+        login_resp = client.post(
+            "/api/auth/login",
+            data={"username": TEST_ADMIN["username"], "password": TEST_ADMIN["password"]},
+        )
+        assert login_resp.status_code == 200
+        tokens = login_resp.json()
+        access = tokens["access_token"]
+        old_refresh = tokens["refresh_token"]
+
+        # 2. Access /users/me (may hit Redis cache)
+        me_resp = client.get("/api/users/me", headers={"Authorization": f"Bearer {access}"})
+        assert me_resp.status_code == 200
+
+        # 3. Logout — revokes refresh token in DB and clears Redis cache
+        logout_resp = client.post(
+            "/api/auth/logout",
+            headers={"Authorization": f"Bearer {access}"},
+        )
+        assert logout_resp.status_code == 200
+
+        # 4. Try to use old refresh token — must be rejected (DB hash cleared)
+        refresh_resp = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": old_refresh},
+        )
+        assert refresh_resp.status_code == 401
+
 
 class TestEmailConfirm:
     async def test_already_confirmed(self, client):

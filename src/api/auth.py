@@ -28,7 +28,7 @@ from src.services.auth import (
     invalidate_user_cache,
 )
 from src.services.email import send_email, send_password_reset_email
-from src.services.users import UserService
+from src.services.users import UserService, verify_refresh_token_hash
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -168,7 +168,7 @@ async def refresh_tokens(
 
     user_service = UserService(db)
     user = await user_service.get_user_by_username(username)
-    if user is None or user.refresh_token != body.refresh_token:
+    if user is None or not verify_refresh_token_hash(body.refresh_token, user.refresh_token):
         raise credentials_exception
 
     new_access = await create_access_token(data={"sub": user.username})
@@ -191,15 +191,22 @@ async def logout(
 ) -> MessageResponse:
     """Revoke the current user's refresh token and clear their cache entry.
 
+    ``current_user`` may be a detached object reconstructed from the Redis
+    cache. To guarantee the DB write, we re-fetch the user from the DB by
+    username before clearing the refresh token.
+
     Args:
         db: Async DB session.
-        current_user: Authenticated user from JWT.
+        current_user: Authenticated user resolved from JWT (may be cached).
 
     Returns:
         Confirmation message.
     """
     user_service = UserService(db)
-    await user_service.update_refresh_token(current_user, None)
+    # Re-fetch from DB to ensure we operate on a session-attached object.
+    db_user = await user_service.get_user_by_username(current_user.username)
+    if db_user:
+        await user_service.update_refresh_token(db_user, None)
     await invalidate_user_cache(current_user.username)
     return {"message": "Logged out successfully"}
 

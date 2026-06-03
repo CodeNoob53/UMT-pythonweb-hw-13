@@ -125,14 +125,22 @@ def create_password_reset_token(email: str) -> str:
 
 
 async def get_email_from_token(token: str) -> str:
-    """Decode an email verification JWT and return its ``sub`` (email).
+    """Decode an email-verification JWT and return its ``sub`` (email).
+
+    Validates that the token's ``token_type`` claim equals ``"email"`` to
+    prevent password-reset tokens (or any other JWT with a ``sub``) from
+    being accepted as a valid confirmation link.
 
     Raises:
-        HTTPException: 422 if the token cannot be decoded or the payload
-            is missing the expected ``sub`` claim.
+        HTTPException: 422 if the token cannot be decoded, the payload is
+            missing ``sub``, or the ``token_type`` is not ``"email"``.
     """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get("token_type") != "email":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid token"
+            )
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(
