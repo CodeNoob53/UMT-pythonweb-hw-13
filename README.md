@@ -121,6 +121,17 @@ docker compose down
 Перед запуском — заповніть `.env`. `DB_URL` і `REDIS_URL` автоматично перевизначаються
 через `environment:` у `docker-compose.yml`.
 
+## Гілки репозиторію
+
+- `main` — основна гілка з канонічною реалізацією домашнього завдання: REST API,
+  тести, Sphinx-документація, Redis-кеш, ролі, reset password та стандартна
+  реєстрація з email-підтвердженням.
+- `render-deploy` — окрема гілка для публічного деплою на Render. Вона містить
+  налаштування Render Blueprint і demo bootstrap для ручної перевірки API на
+  Render Free Tier, де повноцінна SMTP-доставка листів може бути недоступною
+  через обмеження outbound SMTP-портів.
+
+
 ## Деплой на Render
 
 У репозиторії є `render.yaml` для Render Blueprint. Він створює:
