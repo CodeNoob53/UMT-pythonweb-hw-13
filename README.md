@@ -6,6 +6,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7-red)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%2B-red)
 ![JWT](https://img.shields.io/badge/Auth-JWT_access%2Frefresh-black)
+
 REST API для керування контактами з JWT access/refresh токенами, Redis-кешуванням,
 скиданням пароля, ролями користувачів та автентифікацією.
 
