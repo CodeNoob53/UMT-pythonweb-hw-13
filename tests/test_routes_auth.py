@@ -27,6 +27,14 @@ class TestRegister:
             data={"username": "demo_user", "password": "DemoUser123!"},
         )
         assert login_resp.status_code == 200
+        demo_user_me = client.get(
+            "/api/users/me",
+            headers={
+                "Authorization": f"Bearer {login_resp.json()['access_token']}",
+            },
+        )
+        assert demo_user_me.status_code == 200
+        assert demo_user_me.json()["avatar"]
 
         admin_login_resp = client.post(
             "/api/auth/login",

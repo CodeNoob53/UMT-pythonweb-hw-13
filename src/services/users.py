@@ -35,6 +35,15 @@ def verify_refresh_token_hash(raw_token: str, stored_hash: str | None) -> bool:
     return hmac.compare_digest(_hash_token(raw_token), stored_hash)
 
 
+def _get_gravatar_url(email: str) -> str | None:
+    """Build a Gravatar URL for *email* if libgravatar can process it."""
+    try:
+        g = Gravatar(email)
+        return g.get_image()
+    except Exception:
+        return None
+
+
 class UserService:
     """Business logic layer for user operations."""
 
@@ -44,12 +53,7 @@ class UserService:
 
     async def create_user(self, body: UserCreate) -> User:
         """Create a new user, auto-generating a Gravatar avatar if possible."""
-        avatar = None
-        try:
-            g = Gravatar(body.email)
-            avatar = g.get_image()
-        except Exception:
-            pass
+        avatar = _get_gravatar_url(body.email)
         return await self.repository.create_user(body, avatar)
 
     async def get_user_by_email(self, email: str) -> User | None:
@@ -68,11 +72,13 @@ class UserService:
         role: UserRole,
     ) -> User:
         """Create or reset a confirmed demo user for manual deployment tests."""
+        avatar = _get_gravatar_url(email)
         return await self.repository.upsert_demo_user(
             username=username,
             email=email,
             hashed_password=hashed_password,
             role=role,
+            avatar=avatar,
         )
 
     async def confirmed_email(self, email: str) -> None:

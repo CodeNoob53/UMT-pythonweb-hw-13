@@ -44,6 +44,7 @@ class UserRepository:
         email: str,
         hashed_password: str,
         role: UserRole,
+        avatar: str | None = None,
     ) -> User:
         """Create or reset a confirmed demo user for deployment testing."""
         user = await self.get_user_by_username(username)
@@ -52,6 +53,7 @@ class UserRepository:
                 username=username,
                 email=email,
                 hashed_password=hashed_password,
+                avatar=avatar,
                 confirmed=True,
                 role=role,
             )
@@ -59,6 +61,7 @@ class UserRepository:
         else:
             user.email = email
             user.hashed_password = hashed_password
+            user.avatar = avatar
             user.confirmed = True
             user.role = role
             user.refresh_token = None
