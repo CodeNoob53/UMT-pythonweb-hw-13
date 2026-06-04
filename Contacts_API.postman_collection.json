@@ -139,6 +139,37 @@
       "name": "Auth",
       "item": [
         {
+          "name": "Bootstrap demo users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201 Created or 404 when disabled', function () { pm.expect([201, 404]).to.include(pm.response.code); });",
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  const demoUser = data.accounts.find((account) => account.username === 'demo_user');",
+                  "  pm.test('demo_user is returned', function () { pm.expect(demoUser).to.exist; });",
+                  "  if (demoUser) {",
+                  "    pm.collectionVariables.set('username', demoUser.username);",
+                  "    pm.collectionVariables.set('email', demoUser.email);",
+                  "    pm.collectionVariables.set('password', demoUser.password);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/auth/bootstrap-demo-users",
+            "description": "Creates/resets confirmed demo_user and demo_admin when DEMO_BOOTSTRAP_ENABLED=True. After success, the collection switches Login variables to demo_user."
+          },
+          "response": []
+        },
+        {
           "name": "Register user",
           "event": [
             {

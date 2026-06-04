@@ -31,6 +31,8 @@ services:
         value: "900"
       - key: CORS_ORIGINS
         value: https://umt-pythonweb-hw-13.onrender.com,http://localhost:3000,http://localhost:8080
+      - key: DEMO_BOOTSTRAP_ENABLED
+        value: "True"
       - key: MAIL_USERNAME
         sync: false
       - key: MAIL_PASSWORD

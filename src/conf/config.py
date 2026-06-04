@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed CORS origins.
     # Example: "http://localhost:3000,https://myapp.render.com"
     CORS_ORIGINS: str
+    DEMO_BOOTSTRAP_ENABLED: bool = False
 
     MAIL_USERNAME: EmailStr
     MAIL_PASSWORD: str

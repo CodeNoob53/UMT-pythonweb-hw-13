@@ -4,10 +4,43 @@ import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.services.auth import create_access_token, create_refresh_token, create_password_reset_token
+from src.conf.config import settings
 from tests.conftest import TEST_USER, TEST_ADMIN
 
 
 class TestRegister:
+    def test_bootstrap_demo_users_when_enabled(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "DEMO_BOOTSTRAP_ENABLED", True)
+
+        resp = client.post("/api/auth/bootstrap-demo-users")
+
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["message"] == "Demo users are ready"
+        assert {account["username"] for account in data["accounts"]} == {
+            "demo_user",
+            "demo_admin",
+        }
+
+        login_resp = client.post(
+            "/api/auth/login",
+            data={"username": "demo_user", "password": "DemoUser123!"},
+        )
+        assert login_resp.status_code == 200
+
+        admin_login_resp = client.post(
+            "/api/auth/login",
+            data={"username": "demo_admin", "password": "DemoAdmin123!"},
+        )
+        assert admin_login_resp.status_code == 200
+
+    def test_bootstrap_demo_users_when_disabled(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "DEMO_BOOTSTRAP_ENABLED", False)
+
+        resp = client.post("/api/auth/bootstrap-demo-users")
+
+        assert resp.status_code == 404
+
     def test_register_new_user(self, client):
         with patch("src.api.auth.send_email", new_callable=AsyncMock):
             resp = client.post(
@@ -21,7 +54,7 @@ class TestRegister:
         assert resp.status_code == 201
         data = resp.json()
         assert data["username"] == "brandnew"
-        assert "role" in data
+        assert data["role"] == "user"
 
     def test_register_duplicate_email(self, client):
         with patch("src.api.auth.send_email", new_callable=AsyncMock):

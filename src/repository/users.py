@@ -25,19 +25,44 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def create_user(self, body: UserCreate, avatar: str | None = None) -> User:
-        """Create and persist a new user. First registered user gets the admin role."""
-        result = await self.db.execute(select(User))
-        is_first = result.scalars().first() is None
-        role = UserRole.admin if is_first else UserRole.user
-
+        """Create and persist a new regular user."""
         user = User(
             username=body.username,
             email=body.email,
             hashed_password=body.password,
             avatar=avatar,
-            role=role,
+            role=UserRole.user,
         )
         self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def upsert_demo_user(
+        self,
+        username: str,
+        email: str,
+        hashed_password: str,
+        role: UserRole,
+    ) -> User:
+        """Create or reset a confirmed demo user for deployment testing."""
+        user = await self.get_user_by_username(username)
+        if user is None:
+            user = User(
+                username=username,
+                email=email,
+                hashed_password=hashed_password,
+                confirmed=True,
+                role=role,
+            )
+            self.db.add(user)
+        else:
+            user.email = email
+            user.hashed_password = hashed_password
+            user.confirmed = True
+            user.role = role
+            user.refresh_token = None
+
         await self.db.commit()
         await self.db.refresh(user)
         return user

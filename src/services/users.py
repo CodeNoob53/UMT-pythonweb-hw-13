@@ -4,7 +4,7 @@ import hmac
 from sqlalchemy.ext.asyncio import AsyncSession
 from libgravatar import Gravatar
 
-from src.database.models import User
+from src.database.models import User, UserRole
 from src.repository.users import UserRepository
 from src.schemas import UserCreate
 
@@ -59,6 +59,21 @@ class UserService:
     async def get_user_by_username(self, username: str) -> User | None:
         """Return a user by username."""
         return await self.repository.get_user_by_username(username)
+
+    async def upsert_demo_user(
+        self,
+        username: str,
+        email: str,
+        hashed_password: str,
+        role: UserRole,
+    ) -> User:
+        """Create or reset a confirmed demo user for manual deployment tests."""
+        return await self.repository.upsert_demo_user(
+            username=username,
+            email=email,
+            hashed_password=hashed_password,
+            role=role,
+        )
 
     async def confirmed_email(self, email: str) -> None:
         """Confirm a user's email address."""

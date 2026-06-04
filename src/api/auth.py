@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.conf.config import settings
 from src.database.db import get_db
+from src.database.models import UserRole
 from src.schemas import (
     UserCreate,
     UserResponse,
@@ -17,6 +19,7 @@ from src.schemas import (
     RequestPasswordReset,
     ConfirmPasswordReset,
     MessageResponse,
+    DemoAccountsResponse,
 )
 from src.services.auth import (
     Hash,
@@ -31,6 +34,21 @@ from src.services.email import send_email, send_password_reset_email
 from src.services.users import UserService, verify_refresh_token_hash
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+DEMO_ACCOUNTS = [
+    {
+        "username": "demo_user",
+        "email": "demo.user@example.com",
+        "password": "DemoUser123!",
+        "role": UserRole.user,
+    },
+    {
+        "username": "demo_admin",
+        "email": "demo.admin@example.com",
+        "password": "DemoAdmin123!",
+        "role": UserRole.admin,
+    },
+]
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -76,6 +94,51 @@ async def register_user(
         send_email, new_user.email, new_user.username, str(request.base_url)
     )
     return new_user
+
+
+@router.post(
+    "/bootstrap-demo-users",
+    response_model=DemoAccountsResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def bootstrap_demo_users(db: AsyncSession = Depends(get_db)) -> DemoAccountsResponse:
+    """Create/reset confirmed demo users for manual deployment testing.
+
+    The endpoint is disabled unless ``DEMO_BOOTSTRAP_ENABLED=True`` is set in
+    environment variables. It is useful on free hosting tiers where SMTP
+    delivery is unavailable and shell access cannot be used to confirm users.
+    """
+    if not settings.DEMO_BOOTSTRAP_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demo bootstrap is disabled",
+        )
+
+    user_service = UserService(db)
+    hasher = Hash()
+
+    accounts = []
+    for account in DEMO_ACCOUNTS:
+        await user_service.upsert_demo_user(
+            username=account["username"],
+            email=account["email"],
+            hashed_password=hasher.get_password_hash(account["password"]),
+            role=account["role"],
+        )
+        await invalidate_user_cache(account["username"])
+        accounts.append(
+            {
+                "username": account["username"],
+                "email": account["email"],
+                "password": account["password"],
+                "role": account["role"].value,
+            }
+        )
+
+    return {
+        "message": "Demo users are ready",
+        "accounts": accounts,
+    }
 
 
 @router.post("/login", response_model=Token)

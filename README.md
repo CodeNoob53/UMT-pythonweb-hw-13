@@ -17,7 +17,8 @@ REST API для керування контактами з JWT access/refresh т
 - Redis-кеш для `get_current_user`: cache hit → Redis, cache miss → DB + populate.
 - Інвалідація кешу при зміні пароля, ролі, email confirmation та logout.
 - Скидання пароля через email-посилання (JWT-токен, TTL 1 год).
-- Ролі: `user` та `admin`. Перший зареєстрований користувач — адмін.
+- Bootstrap endpoint для створення confirmed demo-акаунтів на тестовому деплої.
+- Ролі: `user` та `admin`. Звичайна реєстрація створює користувача з роллю `user`.
 - Endpoint `/api/users/avatar` — тільки для адміністраторів (403 для звичайних).
 - Email-верифікація при реєстрації.
 - CRUD контактів з пошуком і фільтром по днях народження.
@@ -68,6 +69,7 @@ REDIS_CACHE_TTL=900
 
 # Comma-separated CORS allowed origins (no trailing slashes)
 CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+DEMO_BOOTSTRAP_ENABLED=False
 
 MAIL_USERNAME=example@gmail.com
 MAIL_PASSWORD=your_app_password
@@ -149,6 +151,30 @@ CLD_API_SECRET
 Якщо Render видасть іншу адресу сервісу або ви додасте frontend-домен, оновіть
 `CORS_ORIGINS` у Render Dashboard.
 
+### Demo-акаунти для тестового деплою
+
+Для Render Blueprint у `render.yaml` встановлено `DEMO_BOOTSTRAP_ENABLED=True`.
+Це відкриває endpoint:
+
+```text
+POST /api/auth/bootstrap-demo-users
+```
+
+Він створює або оновлює два confirmed акаунти, які можна використовувати без
+email-підтвердження:
+
+| Роль | Username | Password |
+|---|---|---|
+| `user` | `demo_user` | `DemoUser123!` |
+| `admin` | `demo_admin` | `DemoAdmin123!` |
+
+Після тестування публічного деплою рекомендується вимкнути bootstrap у Render
+Dashboard, встановивши:
+
+```text
+DEMO_BOOTSTRAP_ENABLED=False
+```
+
 ## Тести
 
 ```powershell
@@ -195,7 +221,8 @@ uv run sphinx-build -b html docs docs/_build/html
 
 ```
 Health / Root                        ← перевірка що API відповідає
-Auth / Register user                 ← реєстрація (перший user стає admin)
+Auth / Bootstrap demo users          ← створює confirmed demo_user і demo_admin (якщо увімкнено)
+Auth / Register user                 ← реєстрація звичайного user
   → відкрийте email, скопіюйте токен з посилання підтвердження
   → вставте токен у змінну verify_token
 Auth / Confirm email by token        ← підтвердження email
@@ -240,6 +267,7 @@ Auth / Logout                        ← відкликає refresh token
 | Method | URL | Опис |
 |---|---|---|
 | `POST` | `/api/auth/register` | Реєстрація |
+| `POST` | `/api/auth/bootstrap-demo-users` | Створення demo-акаунтів для тестового деплою |
 | `POST` | `/api/auth/login` | Login → access + refresh token |
 | `POST` | `/api/auth/refresh` | Оновлення пари токенів |
 | `POST` | `/api/auth/logout` | Logout (відкликати refresh token) |
@@ -279,7 +307,10 @@ Auth / Logout                        ← відкликає refresh token
 
 ### Ролі
 
-Перший зареєстрований користувач отримує роль `admin`, решта — `user`. Endpoint `/api/users/avatar` захищено dependency `require_role(UserRole.admin)` — звичайний користувач отримає `403 Forbidden`.
+Звичайна реєстрація створює користувача з роллю `user`. Для тестового деплою
+адміністратора можна створити через `POST /api/auth/bootstrap-demo-users`, якщо
+`DEMO_BOOTSTRAP_ENABLED=True`. Endpoint `/api/users/avatar` захищено dependency
+`require_role(UserRole.admin)` — звичайний користувач отримає `403 Forbidden`.
 
 ### Access/Refresh токени
 

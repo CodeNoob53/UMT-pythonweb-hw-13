@@ -50,6 +50,22 @@ class ConfirmPasswordReset(BaseModel):
     new_password: str
 
 
+class DemoAccountResponse(BaseModel):
+    """Schema for a demo account returned by the bootstrap endpoint."""
+
+    username: str
+    email: EmailStr
+    password: str
+    role: str
+
+
+class DemoAccountsResponse(BaseModel):
+    """Schema for demo account bootstrap response."""
+
+    message: str
+    accounts: list[DemoAccountResponse]
+
+
 class ContactCreate(BaseModel):
     """Schema for creating a contact."""
 
